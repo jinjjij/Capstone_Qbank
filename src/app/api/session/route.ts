@@ -31,7 +31,7 @@ export async function POST(req: Request){
 
     // 성공시 세션 생성 + 쿠키
     const {token, expiresAt} = await createSession(user.id);
-    setSessionCookie(token, expiresAt);
+    await setSessionCookie(token, expiresAt);
     
     return NextResponse.json({ok : true}, {status : 200});
 }
@@ -41,6 +41,6 @@ export async function POST(req: Request){
 // 로그아웃
 export async function DELETE() {
     await logout();
-
+    
     return new NextResponse(null, {status : 204});
 }

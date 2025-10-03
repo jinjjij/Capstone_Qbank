@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API 테스트 미니 웹</title>
+  <style>
+    :root { --bg:#0b0f14; --card:#121821; --muted:#94a3b8; --fg:#e5e7eb; --accent:#60a5fa; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,Pretendard,Apple Color Emoji,Noto Color Emoji,Segoe UI Emoji,Segoe UI Symbol;}
+    header{position:sticky;top:0;background:linear-gradient(180deg, rgba(18,24,33,.95), rgba(18,24,33,.8));backdrop-filter:blur(6px);z-index:10;border-bottom:1px solid #1f2937}
+    .wrap{max-width:980px;margin:0 auto;padding:20px}
+    h1{font-size:20px;margin:10px 0}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    input[type=text],input[type=password],input[type=email],input[type=url]{background:#0f141b;border:1px solid #1f2937;border-radius:10px;padding:10px 12px;color:var(--fg);outline:none}
+    input::placeholder{color:#6b7280}
+    button{background:#1f2937;color:var(--fg);border:1px solid #334155;padding:10px 14px;border-radius:10px;cursor:pointer}
+    button:hover{background:#273444}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-top:16px}
+    .card{background:var(--card);border:1px solid #1f2937;border-radius:14px;padding:14px}
+    .card h3{margin:4px 0 10px;font-size:16px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .control{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+    .muted{color:var(--muted);font-size:12px}
+    .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;border:1px solid #374151;background:#0f141b;color:#cbd5e1;font-size:12px}
+    .status{display:inline-flex;align-items:center;gap:8px}
+    .dot{width:8px;height:8px;border-radius:50%}
+    .ok{background:var(--ok)}
+    .warn{background:var(--warn)}
+    .err{background:var(--err)}
+    .console{margin-top:20px;background:#0a0f15;border:1px solid #1f2937;border-radius:14px}
+    .console-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #1f2937}
+    .log{max-height:360px;overflow:auto;padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:12px;line-height:1.45}
+    .log .item{border-bottom:1px dashed #1f2937;padding:10px 0}
+    .log .item:last-child{border-bottom:none}
+    pre{white-space:pre-wrap;word-break:break-word;margin:0}
+    .help{font-size:12px;color:#cbd5e1}
+    .danger{color:#fecaca}
+    .small{font-size:12px}
+    .row.wrap-left{justify-content:flex-start}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="row wrap-left">
+        <h1>API 테스트 미니 웹</h1>
+        <span class="badge">HTML + JS (쿠키 자동 전송)</span>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="row" style="gap:8px">
+          <label class="small">Base URL</label>
+          <input id="baseUrl" type="url" placeholder="http://192.168.35.240:3000" style="min-width:340px" />
+          <button id="saveBase">저장</button>
+          <button id="ping">/api/health 확인</button>
+        </div>
+        <div class="status" id="originStatus"></div>
+      </div>
+      <div class="help" style="margin-top:6px">
+        같은 오리진(같은 프로토콜/도메인/포트)이라면 브라우저가 쿠키를 자동으로 전송합니다. 다른 오리진이면 서버에 CORS + <code>Access-Control-Allow-Credentials: true</code>와 정확한 <code>Access-Control-Allow-Origin</code> 설정이 필요하며, 이 페이지는 자동으로 <code>credentials: 'include'</code>를 사용합니다.
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="grid">
+      <div class="card">
+        <h3>회원가입 /api/users</h3>
+        <form id="form-signup">
+          <div class="control">
+            <label>이메일</label>
+            <input id="su-email" type="email" required placeholder="you@example.com" />
+          </div>
+          <div class="control">
+            <label>비밀번호</label>
+            <input id="su-pass" type="password" required placeholder="8~72자" />
+          </div>
+          <button type="submit">POST 회원가입</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>로그인 /api/session</h3>
+        <form id="form-login">
+          <div class="control">
+            <label>이메일</label>
+            <input id="li-email" type="email" required />
+          </div>
+          <div class="control">
+            <label>비밀번호</label>
+            <input id="li-pass" type="password" required />
+          </div>
+          <button type="submit">POST 로그인</button>
+        </form>
+        <div class="muted" style="margin-top:6px">성공 시 브라우저가 <code>Set-Cookie: session=...</code>을 저장합니다.</div>
+      </div>
+
+      <div class="card">
+        <h3>내 정보 /api/users/me</h3>
+        <div class="row" style="gap:8px">
+          <button id="btn-me">GET 현재 유저</button>
+          <button id="btn-delete-me" class="danger" title="계정 삭제">DELETE 회원 탈퇴</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>비밀번호 변경 /api/users/me/password</h3>
+        <form id="form-change-pass">
+          <div class="control">
+            <label>현재 비밀번호</label>
+            <input id="cp-current" type="password" required />
+          </div>
+          <div class="control">
+            <label>새 비밀번호</label>
+            <input id="cp-new" type="password" required />
+          </div>
+          <button type="submit">PATCH 비밀번호 변경</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>로그아웃 /api/session</h3>
+        <button id="btn-logout">DELETE 로그아웃</button>
+      </div>
+
+      <div class="card">
+        <h3>서버 상태 /api/health</h3>
+        <button id="btn-health">GET 헬스체크</button>
+      </div>
+    </section>
+
+    <section class="console" style="margin-bottom:40px">
+      <div class="console-header">
+        <div>콘솔</div>
+        <div class="row">
+          <button id="btn-me-quick">내 정보 빠른 확인</button>
+          <button id="clearLog">콘솔 비우기</button>
+        </div>
+      </div>
+      <div class="log" id="log"></div>
+    </section>
+  </main>
+
+  <script>
+    const qs = (s, el=document) => el.querySelector(s);
+    const logEl = qs('#log');
+
+    function persist(k, v){ localStorage.setItem(k, v); }
+    function read(k, d=''){ return localStorage.getItem(k) ?? d; }
+
+    function joinUrl(base, path){
+      if(!base) return path; // same-origin 상대 경로
+      const u = new URL(base);
+      const p = path.startsWith('/') ? path : '/'+path;
+      u.pathname = (u.pathname.replace(/\/$/, '')) + p;
+      return u.toString();
+    }
+
+    function sameOrigin(url){
+      try { return new URL(url).origin === location.origin; }
+      catch { return true; }
+    }
+
+    function now(){
+      const d = new Date();
+      return d.toLocaleTimeString();
+    }
+
+    function log({label, req, res}){
+      const item = document.createElement('div');
+      item.className = 'item';
+      const statusColor = res.ok ? 'ok' : (res.status >= 500 ? 'err' : 'warn');
+      item.innerHTML = `
+        <div class="row" style="justify-content:space-between;gap:8px">
+          <div><span class="badge">${label}</span></div>
+          <div class="status small"><span class="dot ${statusColor}"></span> ${res.status} ${res.statusText} • ${now()}</div>
+        </div>
+        <div class="small muted" style="margin:6px 0">${req.method} ${req.url}</div>
+        <pre>${escapeHtml(JSON.stringify({ request:req, response:res }, null, 2))}</pre>
+      `;
+      logEl.prepend(item);
+    }
+
+    function escapeHtml(s){
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    }
+
+    async function apiFetch(path, { method='GET', bodyObj=null, headers={} }={}){
+      const base = read('api_base', '');
+      const url = joinUrl(base, path);
+      const isSame = sameOrigin(url);
+      const opts = { method, headers: { ...headers }, credentials: 'include' };
+      if(bodyObj !== null){
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(bodyObj);
+      }
+      let res, data, rawText;
+      try{
+        res = await fetch(url, opts);
+        const ct = res.headers.get('content-type') || '';
+        if(ct.includes('application/json')) data = await res.json();
+        else { rawText = await res.text(); data = { _raw: rawText }; }
+      }catch(e){
+        res = { ok:false, status:0, statusText:String(e), headers:new Headers(), url };
+        data = { error: String(e) };
+      }
+      log({ label: path, req: { url, method, headers: opts.headers, body: bodyObj }, res: { ok: !!res.ok, status: res.status ?? 0, statusText: res.statusText ?? '', headers: Object.fromEntries((res.headers||new Headers()).entries()), data } });
+      return { res, data };
+    }
+
+    function updateOriginStatus(){
+      const base = read('api_base', '');
+      const el = qs('#originStatus');
+      if(!base){
+        el.innerHTML = `<span class="dot ok"></span><span class="small">Same Origin (상대 경로 사용)</span>`;
+        return;
+      }
+      const url = joinUrl(base, '/');
+      if(sameOrigin(url)){
+        el.innerHTML = `<span class="dot ok"></span><span class="small">Same Origin</span>`;
+      }else{
+        el.innerHTML = `<span class="dot warn"></span><span class="small">Cross Origin: <code>credentials: 'include'</code> 사용. 서버 CORS 설정 필요</span>`;
+      }
+    }
+
+    // UI 바인딩
+    document.addEventListener('DOMContentLoaded', () => {
+      qs('#baseUrl').value = read('api_base', '');
+      updateOriginStatus();
+
+      qs('#saveBase').addEventListener('click', () => {
+        persist('api_base', qs('#baseUrl').value.trim());
+        updateOriginStatus();
+      });
+
+      qs('#ping').addEventListener('click', async () => {
+        await apiFetch('/api/health', { method:'GET' });
+      });
+
+      // 회원가입
+      qs('#form-signup').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = qs('#su-email').value.trim();
+        const password = qs('#su-pass').value;
+        await apiFetch('/api/users', { method:'POST', bodyObj: { email, password } });
+      });
+
+      // 로그인
+      qs('#form-login').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = qs('#li-email').value.trim();
+        const password = qs('#li-pass').value;
+        await apiFetch('/api/session', { method:'POST', bodyObj: { email, password } });
+        // 바로 내 정보 확인
+        await apiFetch('/api/users/me', { method:'GET' });
+      });
+
+      // 내 정보
+      qs('#btn-me').addEventListener('click', async () => {
+        await apiFetch('/api/users/me', { method:'GET' });
+      });
+
+      // 비밀번호 변경
+      qs('#form-change-pass').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const currentPassword = qs('#cp-current').value;
+        const newPassword = qs('#cp-new').value;
+        await apiFetch('/api/users/me/password', { method:'PATCH', bodyObj: { currentPassword, newPassword } });
+      });
+
+      // 로그아웃
+      qs('#btn-logout').addEventListener('click', async () => {
+        await apiFetch('/api/session', { method:'DELETE' });
+        await apiFetch('/api/users/me', { method:'GET' });
+      });
+
+      // 회원 탈퇴
+      qs('#btn-delete-me').addEventListener('click', async () => {
+        if(!confirm('정말 회원 탈퇴하시겠어요? 이 작업은 되돌릴 수 없습니다.')) return;
+        await apiFetch('/api/users/me', { method:'DELETE' });
+        await apiFetch('/api/users/me', { method:'GET' });
+      });
+
+      qs('#btn-health').addEventListener('click', async () => {
+        await apiFetch('/api/health', { method:'GET' });
+      });
+
+      qs('#btn-me-quick').addEventListener('click', async () => {
+        await apiFetch('/api/users/me', { method:'GET' });
+      });
+
+      qs('#clearLog').addEventListener('click', () => { logEl.innerHTML=''; });
+    });
+  </script>
+</body>
+</html>

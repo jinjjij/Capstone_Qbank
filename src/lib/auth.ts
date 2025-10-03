@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 
 export const COOKIE_NAME = "session";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7일
+export const COOKIE_SECURE = false;
 
 
 function hashToken(token: string){
@@ -46,9 +47,9 @@ export async function createSession(userId : number){
 export async function setSessionCookie(token: string, expiresAt: Date){
     const jar = await cookies();
 
-    jar.set(COOKIE_NAME, token, {
+    await jar.set(COOKIE_NAME, token, {
         httpOnly: true,
-        secure : true,
+        secure : COOKIE_SECURE,
         sameSite: "lax",
         path: "/",
         expires : expiresAt
@@ -60,16 +61,20 @@ export async function getCurrentUser(){
     const jar = await cookies();
 
     // 현재 유저가 없으면(쿠키에) 널반환
-    const token = jar.get(COOKIE_NAME)?.value;
-    if(!token) return null;
+    const token = await jar.get(COOKIE_NAME)?.value;
+    if(!token) {
+        console.log("no cookie")
+        return null;
+    }
 
     const tokenHash = hashToken(token);
+    console.log("post - db");
     const session = await db.session.findUnique({
         where: {sessionToken: tokenHash},
         include: {user: true}
     });
     if(!session)    return null;
-
+    console.log("after - db");
 
     // 세션 만료 처리
     if(session.expiresAt < new Date()){
@@ -85,14 +90,14 @@ export async function getCurrentUser(){
 
 export async function clearSessionCookie(){
     const jar = await cookies();
-    jar.set(COOKIE_NAME, "", {path: "/", expires: new Date(0)});
+    await jar.set(COOKIE_NAME, "", {path: "/", expires: new Date(0)});
 }
 
 
 
 export async function deleteSessionByCookieToken(){
     const jar = await cookies();
-    const token = jar.get(COOKIE_NAME)?.value;
+    const token = await jar.get(COOKIE_NAME)?.value;
     if(!token) return;
 
     const tokenHash = hashToken(token);
