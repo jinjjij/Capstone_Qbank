@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,26 +7,171 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/**
+ * =======================
+ * User
+ * =======================
+ */
 
 model User {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique @db.VarChar(255)
-  passwordHash  String    @db.VarChar(255)
-  createdAt     DateTime  @default(now())
-  sessions                Session[]
+  id           Int      @id @default(autoincrement())
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @db.VarChar(255)
+  createdAt    DateTime @default(now())
+
+  // 세션
+  sessions Session[]
+
+  // 라이브러리 (유저가 저장한 책들)
+  libraryLinks UserLibrary[]
+  libraryCount Int           @default(0)
+
+  // 저자로서의 관계
+  authoredBooks     Book[]
+  authoredQuestions Question[]
+
+  // 내가 쓴 리뷰들
+  reviews BookReview[]
 
   @@index([email])
 }
 
+/**
+ * =======================
+ * UserLibrary (유저 ↔ 책 N:N)
+ * =======================
+ */
 
-model Session{
-  id            Int      @id @default(autoincrement())
-  userId        Int
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionToken  String   @unique @db.VarChar(255)
-  expiresAt     DateTime
-  createdAt     DateTime @default(now())
+model UserLibrary {
+  userId  Int
+  bookId  Int
+  addedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@id([userId, bookId])
+  @@index([userId])
+  @@index([bookId])
+}
+
+/**
+ * =======================
+ * Session
+ * =======================
+ */
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String   @unique @db.VarChar(255)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+/**
+ * =======================
+ * Book (문제집)
+ * =======================
+ */
+
+model Book {
+  id       Int   @id @default(autoincrement())
+  authorId Int?
+  author   User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  bookCode    String  @unique
+  title       String
+  description String?
+
+  visibility Visibility @default(PRIVATE)
+
+  questionCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  questions Question[]
+  reviews   BookReview[]
+
+  ratingAvg   Float @default(0)
+  ratingCount Int   @default(0)
+
+  // 라이브러리에 저장한 유저들과의 링크
+  savedByLinks UserLibrary[]
+
+  @@index([authorId, visibility])
+  @@index([title])
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+/**
+ * =======================
+ * Question (문제)
+ * =======================
+ */
+
+model Question {
+  id     Int  @id @default(autoincrement())
+  bookId Int
+  book   Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  // 책 내부에서의 순서
+  orderIndex Int
+
+  type QuestionType
+
+  // 본문/해설: Markdown 문자열
+  question String
+
+  // MCQ 전용: [{id, text, isCorrect}]
+  choices Json?
+
+  // 정답: type별 통일 JSON 형식
+  answer Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId Int?
+  author   User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@unique([bookId, orderIndex])
+  @@index([bookId, orderIndex])
+}
+
+enum QuestionType {
+  MCQ
+  SHORT
+}
+
+/**
+ * =======================
+ * BookReview (리뷰)
+ * =======================
+ */
+
+model BookReview {
+  id     Int  @id @default(autoincrement())
+  bookId Int
+  book   Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([bookId, userId])
+  @@index([bookId])
+  @@index([userId])
 }
