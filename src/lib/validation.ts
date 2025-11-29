@@ -17,3 +17,22 @@ export const ChangePasswordSchema = z.object({
     currentPassword: z.string().min(1),
     newPassword: z.string().min(8).max(72)
 })
+
+
+export function isString(value: any): value is string {
+  return typeof value === "string";
+}
+
+export function isOptionalString(value: any): value is string | undefined | null {
+  return (
+    value === undefined ||
+    value === null ||
+    typeof value === "string"
+  );
+}
+
+export type Visibility = "PUBLIC" | "PRIVATE";
+
+export function isVisibility(value: any): value is Visibility {
+  return value === "PUBLIC" || value === "PRIVATE";
+}
