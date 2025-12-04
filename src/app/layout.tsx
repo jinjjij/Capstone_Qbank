@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -24,9 +25,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body>
+        <div className="navigator">
+          <Link href="/profile">내 프로필</Link>
+          <Link href="/main">검색</Link>
+          <Link href="/bank">내 문제집</Link>
+          <Link href="/setting">설정</Link>
+        </div>
         {children}
       </body>
     </html>
