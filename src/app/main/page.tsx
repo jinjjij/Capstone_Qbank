@@ -1,8 +1,10 @@
-import Form from "next/form"
+import Form from "next/form";
+import Sidebar from "@/components/Sidebar";
 
 export default function Main() {
   return (
     <div>
+      <Sidebar />
       <div className="search">
         <form method="GET" action="/search">
             <input type="text" name="q" placeholder="문제집 검색" />

@@ -1,6 +1,9 @@
+import Sidebar from "@/components/Sidebar";
+
 export default function Profile() {
   return (
     <div>
+      <Sidebar />
       <div className="profile">
         <button>프로필</button>
         <h1>홍길동</h1>
