@@ -14,9 +14,10 @@ export async function POST(request: Request) {
     const title = formData.get("title") as string;
     const description = formData.get("description") as string;
     const questionCount = parseInt(formData.get("questionCount") as string);
+    const questionType = (formData.get("questionType") as string) || "MCQ";
 
-    if (!file || !title || !description || !questionCount) {
-      return NextResponse.json({ error: "필수 필드가 누락되었습니다." }, { status: 400 });
+    if (!file || !title || !description || !questionCount || !["MCQ", "SHORT"].includes(questionType)) {
+      return NextResponse.json({ error: "필수 필드가 누락되었거나 잘못되었습니다." }, { status: 400 });
     }
 
     // PDF를 임시 파일로 저장
@@ -46,7 +47,12 @@ export async function POST(request: Request) {
 
     // OpenAI API 호출 부분
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const prompt = `다음 텍스트에서 ${questionCount}개의 객관식 문제를 생성하세요. 각 문제는 JSON 형식으로 {question: string, choices: [{id: string, text: string}], answer: {id: string}}이어야 합니다. 응답은 JSON 배열로만 하세요.\n\n텍스트: ${textContent}`;
+    let prompt = "";
+    if (questionType === "MCQ") {
+      prompt = `다음 텍스트에서 ${questionCount}개의 객관식 문제를 생성하세요. 각 문제는 JSON 형식으로 {question: string, choices: [{id: string, text: string}], answer: {id: string}}이어야 합니다. 응답은 JSON 배열로만 하세요.\n\n텍스트: ${textContent}`;
+    } else {
+      prompt = `다음 텍스트에서 ${questionCount}개의 주관식 문제를 생성하세요. 각 문제는 JSON 형식으로 {question: string, answer: string}이어야 합니다. 응답은 JSON 배열로만 하세요.\n\n텍스트: ${textContent}`;
+    }
     const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
@@ -72,9 +78,9 @@ export async function POST(request: Request) {
         data: {
           bookId: book.id,
           orderIndex: i + 1,
-          type: "MCQ",
+          type: questionType as "MCQ" | "SHORT",
           question: q.question,
-          choices: q.choices,
+          choices: questionType === "MCQ" ? q.choices : null,
           answer: q.answer,
           // authorId: book.authorId,
         },

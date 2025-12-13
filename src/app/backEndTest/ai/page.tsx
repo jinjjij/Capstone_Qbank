@@ -11,7 +11,7 @@ export default function AITestPage() {
   const [result, setResult] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!file || !title || !description || !questionCount) {
       setResult("모든 필드를 입력하세요.");
@@ -64,7 +64,7 @@ export default function AITestPage() {
           <input
             type="file"
             accept=".pdf"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] || null)}
             required
             style={{
               padding: 8,
@@ -79,7 +79,7 @@ export default function AITestPage() {
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
             required
             style={{
               padding: 8,
@@ -93,7 +93,7 @@ export default function AITestPage() {
           <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>설명: </label>
           <textarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
             required
             style={{
               padding: 8,
@@ -109,7 +109,7 @@ export default function AITestPage() {
           <input
             type="number"
             value={questionCount}
-            onChange={(e) => setQuestionCount(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuestionCount(e.target.value)}
             required
             style={{
               padding: 8,
