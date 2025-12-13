@@ -3,12 +3,8 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { writeFile, unlink, mkdir } from "fs/promises";
 import path from "path";
-import * as pdfjs from "pdfjs-dist";
-import { randomBytes } from "crypto";
+import pdfParse from "pdf-parse";
 import { nanoid } from "nanoid";
-
-// pdfjs worker 설정
-pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
 
 export async function POST(request: Request) {
   try {
@@ -30,14 +26,8 @@ export async function POST(request: Request) {
 
     // PDF를 TXT로 변환
     const buffer = await import("fs").then(fs => fs.readFileSync(tempPath));
-    const loadingTask = pdfjs.getDocument(new Uint8Array(buffer));
-    const pdf = await loadingTask.promise;
-    let textContent = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const text = await page.getTextContent();
-      textContent += text.items.map((item: any) => item.str).join(' ') + '\n';
-    }
+    const data = await pdfParse(buffer);
+    const textContent = data.text;
 
     // 임시 파일 삭제
     await unlink(tempPath);
