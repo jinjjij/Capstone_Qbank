@@ -95,7 +95,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ bookId:
     // We'll create sequentially in a transaction to guarantee order indices
     const createdRows = [] as any[];
 
-    const transaction = await db.$transaction(async (prisma) => {
+    const transaction = await db.$transaction(async (prisma: any) => {
       for (const it of items) {
         const createdRow = await prisma.question.create({
           data: {

@@ -1,9 +1,10 @@
+"use server";
+
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { writeFile, unlink, mkdir } from "fs/promises";
 import path from "path";
-import pdfParse from "pdf-parse";
 import { nanoid } from "nanoid";
 
 export async function POST(request: Request) {
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
 
     // PDF를 TXT로 변환
     const buffer = await import("fs").then(fs => fs.readFileSync(tempPath));
+    const pdfParse = (await import("pdf-parse")).default;
     const data = await pdfParse(buffer);
     const textContent = data.text;
 

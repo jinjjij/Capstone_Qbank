@@ -106,7 +106,7 @@ export async function GET(req: Request) {
     // total optional — compute count on baseWhere (without pagination cursor)
     const total = await db.userLibrary.count({ where: baseWhere });
 
-    const responseItems = items.map((r) => r.book);
+    const responseItems = items.map((r: any) => r.book);
 
     return NextResponse.json({ ok: true, data: { items: responseItems, pageInfo: { limit, hasNext, nextCursor }, summary: { count: responseItems.length, total } } }, { status: 200 });
   } catch (err: any) {
