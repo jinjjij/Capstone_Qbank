@@ -28,24 +28,24 @@ export default function Main() {
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // 내 문제집 불러오기
+  // 최근에 풀 문제집 불러오기
   useEffect(() => {
-    const fetchMyLibrary = async () => {
+    const fetchRecentBooks = async () => {
       try {
-        const res = await fetch("/api/user/me/library?limit=20");
+        const res = await fetch("/api/user/me/recent-books?limit=20");
         const data = await res.json();
         
         if (data.ok && data.data.items) {
           setMyBooks(data.data.items);
         }
       } catch (error) {
-        console.error("Failed to fetch library:", error);
+        console.error("Failed to fetch recent books:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMyLibrary();
+    fetchRecentBooks();
   }, []);
 
   // 검색 처리
@@ -153,11 +153,11 @@ export default function Main() {
           </div>
         )}
 
-        {/* 내 문제집 */}
+        {/* 최근에 풀 문제집 */}
         {!isSearching && (
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>
-              내 문제집 ({myBooks.length})
+              최근에 푼 문제집 ({myBooks.length})
             </h2>
             {loading ? (
               <div className={styles.emptyState}>
@@ -172,10 +172,10 @@ export default function Main() {
             ) : (
               <div className={styles.emptyState}>
                 <p className={styles.emptyStateText}>
-                  아직 문제집이 없습니다
+                  아직 풀 문제집이 없습니다
                 </p>
                 <p className={styles.emptyStateSubtext}>
-                  문제집을 생성하거나 다른 사람의 문제집을 라이브러리에 추가해보세요
+                  문제집을 풀면 여기에 표시됩니다
                 </p>
               </div>
             )}

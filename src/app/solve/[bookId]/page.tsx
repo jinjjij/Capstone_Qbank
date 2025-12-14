@@ -47,6 +47,11 @@ export default function SolvePage() {
         if (questionsData.ok) {
           setQuestions(questionsData.data.items);
         }
+
+        // 접근 기록 업데이트
+        fetch(`/api/user/me/activity/${bookId}`, {
+          method: "POST",
+        }).catch(() => {});
       } catch (error) {
         console.error("Failed to fetch data:", error);
       } finally {
