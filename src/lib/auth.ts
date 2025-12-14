@@ -70,8 +70,18 @@ export async function getCurrentUser(){
     const tokenHash = hashToken(token);
     console.log("post - db");
     const session = await db.session.findUnique({
-        where: {sessionToken: tokenHash},
-        include: {user: true}
+        where: { sessionToken: tokenHash },
+        select: {
+            id: true,
+            expiresAt: true,
+            user: {
+                select: {
+                    id: true,
+                    email: true,
+                    isAdmin: true,
+                },
+            },
+        },
     });
     if(!session)    return null;
     console.log("after - db");

@@ -1,32 +1,40 @@
 // app/backEndTest/ai/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function AITestPage() {
+  const [user, setUser] = useState<{id: number, email: string} | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [questionCount, setQuestionCount] = useState("");
+  const [message, setMessage] = useState("");
   const [result, setResult] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    fetch("/api/users/me")
+      .then(res => res.json())
+      .then(data => {
+        if (data.id && data.email) setUser(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!file || !title || !description || !questionCount) {
+    if (!file || !questionCount) {
       setResult("모든 필드를 입력하세요.");
       return;
     }
 
     setLoading(true);
     const formData = new FormData();
-    formData.append("pdf", file);
-    formData.append("title", title);
-    formData.append("description", description);
+    formData.append("file", file);
     formData.append("questionCount", questionCount);
+    formData.append("message", message);
 
     try {
-      const response = await fetch("/api/books/ai", {
+      const response = await fetch("/api/ai/query", {
         method: "POST",
         body: formData,
       });
@@ -40,16 +48,37 @@ export default function AITestPage() {
   };
 
   return (
-    <main style={{
-      padding: 24,
-      backgroundColor: "#f9f9f9",
-      border: "2px solid #007bff",
-      borderRadius: 8,
-      margin: 20,
-      fontFamily: "Arial, sans-serif"
-    }}>
-      <h1 style={{ color: "#007bff", textAlign: "center" }}>AI 문제집 생성 API 테스트</h1>
-      <p style={{ textAlign: "center", color: "#555" }}>PDF를 업로드하여 문제집을 생성하는 API를 테스트합니다.</p>
+    <>
+      <div style={{ 
+        position: "fixed", 
+        top: "10px", 
+        left: "10px", 
+        padding: "8px 12px", 
+        background: "var(--bg-secondary)", 
+        borderRadius: "var(--radius-md)",
+        fontSize: "0.85rem",
+        color: "var(--text-secondary)",
+        zIndex: 100
+      }}>
+        {user ? (
+          <>
+            <div><strong>ID:</strong> {user.id}</div>
+            <div><strong>Email:</strong> {user.email}</div>
+          </>
+        ) : (
+          <div style={{ color: "var(--error)" }}>로그인 필요</div>
+        )}
+      </div>
+      <main style={{
+        padding: 24,
+        backgroundColor: "#f9f9f9",
+        border: "2px solid #007bff",
+        borderRadius: 8,
+        margin: 20,
+        fontFamily: "Arial, sans-serif"
+      }}>
+        <h1 style={{ color: "#007bff", textAlign: "center" }}>AI 문제 생성 API 테스트</h1>
+      <p style={{ textAlign: "center", color: "#555" }}>파일을 업로드하여 문제 리스트를 생성하는 API를 테스트합니다.</p>
 
       <form onSubmit={handleSubmit} style={{
         marginTop: 20,
@@ -63,44 +92,14 @@ export default function AITestPage() {
           <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>PDF 파일: </label>
           <input
             type="file"
-            accept=".pdf"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            accept=".pdf,.txt"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] || null)}
             required
             style={{
               padding: 8,
               border: "1px solid #ccc",
               borderRadius: 4,
               width: "100%"
-            }}
-          />
-        </div>
-        <div>
-          <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>제목: </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            style={{
-              padding: 8,
-              border: "1px solid #ccc",
-              borderRadius: 4,
-              width: "100%"
-            }}
-          />
-        </div>
-        <div>
-          <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>설명: </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
-            style={{
-              padding: 8,
-              border: "1px solid #ccc",
-              borderRadius: 4,
-              width: "100%",
-              minHeight: 80
             }}
           />
         </div>
@@ -109,13 +108,27 @@ export default function AITestPage() {
           <input
             type="number"
             value={questionCount}
-            onChange={(e) => setQuestionCount(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuestionCount(e.target.value)}
             required
             style={{
               padding: 8,
               border: "1px solid #ccc",
               borderRadius: 4,
               width: "100%"
+            }}
+          />
+        </div>
+        <div>
+          <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>짧은 메세지: </label>
+          <textarea
+            value={message}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value)}
+            style={{
+              padding: 8,
+              border: "1px solid #ccc",
+              borderRadius: 4,
+              width: "100%",
+              minHeight: 80
             }}
           />
         </div>
@@ -132,7 +145,7 @@ export default function AITestPage() {
             fontSize: 16
           }}
         >
-          {loading ? "업로드 중..." : "문제집 생성"}
+          {loading ? "요청 중..." : "문제 생성"}
         </button>
       </form>
 
@@ -150,5 +163,6 @@ export default function AITestPage() {
         </pre>
       )}
     </main>
+    </>
   );
 }

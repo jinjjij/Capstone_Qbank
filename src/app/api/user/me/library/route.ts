@@ -20,6 +20,7 @@ export async function GET(req: Request) {
 
     const limit = parseLimit(sp.get("limit"));
     const cursor = sp.get("cursor");
+    const q = (sp.get("q") ?? "").trim();
     const visibilityParam = sp.get("visibility"); // PUBLIC / PRIVATE / null
     const ownedByMeParam = sp.get("ownedByMe"); // "true" | "false" | null
     const sort = sp.get("sort") ?? "updatedAt";
@@ -34,16 +35,35 @@ export async function GET(req: Request) {
     let sortField: string = sort === "rating" ? "ratingAvg" : sort;
 
     // base where: only current user's library rows
-    let baseWhere: any = { userId: user.id };
+    const bookWhere: any = {};
 
     // apply visibility filter to the linked book
     if (visibilityParam === "PUBLIC" || visibilityParam === "PRIVATE") {
-      baseWhere.book = { visibility: visibilityParam };
+      bookWhere.visibility = visibilityParam;
     }
 
     // apply ownedByMe filter
-    if (ownedByMeParam === "true") baseWhere.book = { ...(baseWhere.book ?? {}), authorId: user.id };
-    else if (ownedByMeParam === "false") baseWhere.book = { ...(baseWhere.book ?? {}), NOT: { authorId: user.id } };
+    if (ownedByMeParam === "true") bookWhere.authorId = user.id;
+    else if (ownedByMeParam === "false") bookWhere.NOT = { authorId: user.id };
+
+    // apply q filter (title/description/bookCode)
+    if (q) {
+      bookWhere.AND = [
+        ...(Array.isArray(bookWhere.AND) ? bookWhere.AND : []),
+        {
+          OR: [
+            { title: { contains: q, mode: "insensitive" } },
+            { description: { contains: q, mode: "insensitive" } },
+            { bookCode: { contains: q, mode: "insensitive" } },
+          ],
+        },
+      ];
+    }
+
+    const baseWhere: any = {
+      userId: user.id,
+      ...(Object.keys(bookWhere).length > 0 ? { book: bookWhere } : {}),
+    };
 
     // cursor handling: cursor is base64(JSON) of { value, id }
     let where = baseWhere;

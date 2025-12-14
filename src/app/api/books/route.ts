@@ -1,123 +1,140 @@
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { isString, isOptionalString, isVisibility, Visibility } from "@/lib/validation";
 import { getCurrentUser } from "@/lib/auth";
+import { isOptionalString, isString, isVisibility } from "@/lib/validation";
+import { Prisma } from "@prisma/client";
 import { nanoid } from "nanoid";
 
-
-interface CreateBook{
-    title : string;
-    description? : string;
-    visibility? : "PUBLIC" | "PRIVATE" ;
+interface CreateBook {
+    title: string;
+    description?: string | null;
+    visibility?: "PUBLIC" | "PRIVATE";
 }
 
-
-function _ValidateBookScheme(payload: any): asserts payload is CreateBook {
-
+function validateCreateBook(payload: unknown): asserts payload is CreateBook {
     if (typeof payload !== "object" || payload === null) {
         throw { status: 400, message: "body must be object" };
     }
 
-    if (!isString(payload.title) || payload.title.trim().length === 0) {
+    const record = payload as Record<string, unknown>;
+
+    if (!isString(record.title) || record.title.trim().length === 0) {
         throw { status: 400, message: "title is required" };
     }
 
-    if (!isOptionalString(payload.description)) {
+    if (!isOptionalString(record.description)) {
         throw { status: 400, message: "description must be string | null" };
     }
 
-    if (
-        payload.visibility !== undefined &&
-        !isVisibility(payload.visibility)
-    ) {
+    if (record.visibility !== undefined && !isVisibility(record.visibility)) {
         throw { status: 400, message: "visibility must be PUBLIC or PRIVATE" };
     }
 }
 
+function getErrorMessage(err: unknown, fallback: string) {
+    if (err instanceof Error && err.message) return err.message;
+    if (typeof err === "object" && err !== null && "message" in err) {
+        const m = (err as { message?: unknown }).message;
+        if (typeof m === "string" && m) return m;
+    }
+    return fallback;
+}
+
+function getErrorStatus(err: unknown, fallback: number) {
+    if (typeof err === "object" && err !== null && "status" in err) {
+        const s = (err as { status?: unknown }).status;
+        if (typeof s === "number" && Number.isInteger(s) && s >= 100 && s <= 599) return s;
+    }
+    return fallback;
+}
+
+function parseCursor(raw: string): { id: number; value: unknown } | null {
+    try {
+        const decoded = JSON.parse(Buffer.from(raw, "base64").toString("utf8")) as unknown;
+        if (typeof decoded !== "object" || decoded === null) return null;
+        const obj = decoded as Record<string, unknown>;
+        const id = typeof obj.id === "number" ? obj.id : Number(obj.id);
+        if (!Number.isInteger(id)) return null;
+        return { id, value: obj.value };
+    } catch {
+        return null;
+    }
+}
 
 /*
-    api/books POST
+    POST /api/books
     문제집 생성.
 */
-export async function POST(req : Request){
-    
-    let body;
-    
+export async function POST(req: Request) {
+    let body: unknown;
+
     try {
         body = await req.json();
-        _ValidateBookScheme(body);
-    } catch(err: any) {
+        validateCreateBook(body);
+    } catch (err) {
         console.log("body parsing error!!");
         return NextResponse.json(
-            { error: err?.message ?? "Invalid request body"},
-            { status: err?.status ?? 400 }
+            { error: getErrorMessage(err, "Invalid request body") },
+            { status: getErrorStatus(err, 400) }
         );
     }
 
+    const { title, description, visibility } = body as CreateBook;
 
-    // body arguments
-    const {
-        title,
-        description,
-        visibility,
-    } = body;
-
-    // user id
     const user = await getCurrentUser();
-
-    // validate User
     if (!user) {
         console.log("Unauthorized or Non-Existing Error");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
     const authorId = user.id;
 
-    // bookcode 
-    let bookCode
+    // bookcode
+    let bookCode: string;
 
-    while(true){
+    while (true) {
         bookCode = nanoid(10);
-        const exists = await db.book.findUnique({
-            where: {bookCode: bookCode}
-        });
-
-        if(!exists){
-            break;
-        }
+        const exists = await db.book.findUnique({ where: { bookCode } });
+        if (!exists) break;
     }
 
+    try {
+        // 문제집 생성 및 라이브러리에 자동 추가 (트랜잭션)
+        const result = await db.$transaction(async (tx) => {
+            const newBook = await tx.book.create({
+                data: {
+                    authorId,
+                    title: title.trim(),
+                    description: description ?? null,
+                    bookCode,
+                    visibility: visibility ?? "PRIVATE",
+                },
+                select: { id: true, authorId: true, bookCode: true, title: true },
+            });
 
-    try{
-        const newBook = await db.book.create({
-            data : {
-                authorId,
-                title, 
-                description, 
-                bookCode, 
-                visibility: visibility ?? "PRIVATE",
-            },
-            select : {authorId: true, bookCode: true}
+            await tx.userLibrary.create({
+                data: {
+                    userId: authorId,
+                    bookId: newBook.id,
+                },
+            });
+
+            return newBook;
         });
 
-        return NextResponse.json({newBook}, {status : 201});
-    }
-    catch(err : any){
+        return NextResponse.json({ newBook: result }, { status: 201 });
+    } catch (err) {
         console.error("Unexpected DB error", err);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
-    
-
 
 /*
-    api/books GET
-    문제집 검색 
+    GET /api/books
+    문제집 검색
 */
-export async function GET(req: Request){
-    try{
+export async function GET(req: Request) {
+    try {
         const url = new URL(req.url);
         const sp = url.searchParams;
 
@@ -127,73 +144,59 @@ export async function GET(req: Request){
         const sort = sp.get("sort") ?? "title";
         const order = (sp.get("order") ?? "desc").toLowerCase();
 
-        // validate limit
         const limit = Number(limitRaw);
         if (!Number.isInteger(limit) || limit <= 0 || limit > 100) {
             return NextResponse.json({ ok: false, error: "INVALID_QUERY" }, { status: 400 });
         }
 
-        const allowedSort = ["updatedAt", "rating", "title", "questionCount"];
-        if (!allowedSort.includes(sort)) {
+        const allowedSort = ["updatedAt", "rating", "title", "questionCount"] as const;
+        if (!allowedSort.includes(sort as (typeof allowedSort)[number])) {
             return NextResponse.json({ ok: false, error: "INVALID_QUERY" }, { status: 400 });
         }
 
         if (order !== "asc" && order !== "desc") {
             return NextResponse.json({ ok: false, error: "INVALID_QUERY" }, { status: 400 });
         }
+        const orderDir = order as Prisma.SortOrder;
 
-        // map sort -> db field
-        let sortField: string;
-        switch (sort) {
-            case "rating":
-                sortField = "ratingAvg";
-                break;
-            default:
-                sortField = sort;
-        }
+        const sortField = sort === "rating" ? "ratingAvg" : sort;
 
-        // visibility handling: public or owned private
+        // visibility handling: admin can see all, others see public or owned private
         const user = await getCurrentUser();
-        const visibilityFilter: any = user
-            ? { OR: [{ visibility: "PUBLIC" }, { authorId: user.id }] }
-            : { visibility: "PUBLIC" };
+        const visibilityFilter: Prisma.BookWhereInput = user?.isAdmin
+            ? {}
+            : user
+                ? { OR: [{ visibility: "PUBLIC" }, { authorId: user.id }] }
+                : { visibility: "PUBLIC" };
 
-        // function to build cursor where clause
-        function buildCursorWhere(parsedCursor: any, orderDir: string) {
-            if (!parsedCursor || parsedCursor.id === undefined) return undefined;
+        function buildCursorWhere(parsed: { id: number; value: unknown }): Prisma.BookWhereInput | undefined {
+            let cmpVal: Date | number | string;
+            if (sortField === "updatedAt") cmpVal = new Date(String(parsed.value));
+            else if (sortField === "questionCount" || sortField === "ratingAvg") cmpVal = Number(parsed.value);
+            else cmpVal = String(parsed.value);
 
-            const value = parsedCursor.value;
-            // for dates, convert
-            let cmpVal: any = value;
-            if (sortField === "updatedAt") cmpVal = new Date(value);
-            else if (sortField === "questionCount" || sortField === "ratingAvg") cmpVal = Number(value);
-
-            // descending -> take items with field < cmpVal OR equal and id < cursorId
             if (orderDir === "desc") {
                 return {
                     OR: [
-                        { [sortField]: { lt: cmpVal } },
-                        { AND: [{ [sortField]: { equals: cmpVal } }, { id: { lt: parsedCursor.id } }] },
+                        { [sortField]: { lt: cmpVal } } as Prisma.BookWhereInput,
+                        { AND: [{ [sortField]: { equals: cmpVal } } as Prisma.BookWhereInput, { id: { lt: parsed.id } }] },
                     ],
-                };
+                } as Prisma.BookWhereInput;
             }
 
-            // asc
             return {
                 OR: [
-                    { [sortField]: { gt: cmpVal } },
-                    { AND: [{ [sortField]: { equals: cmpVal } }, { id: { gt: parsedCursor.id } }] },
+                    { [sortField]: { gt: cmpVal } } as Prisma.BookWhereInput,
+                    { AND: [{ [sortField]: { equals: cmpVal } } as Prisma.BookWhereInput, { id: { gt: parsed.id } }] },
                 ],
-            };
+            } as Prisma.BookWhereInput;
         }
 
-        // determine matchType & base where
         let matchType: "code" | "text" | "none" = "none";
-        let baseWhere: any = visibilityFilter;
-        let where: any = baseWhere;
+        const baseWhere: Prisma.BookWhereInput = visibilityFilter;
+        let where: Prisma.BookWhereInput = baseWhere;
 
         if (q) {
-            // try code exact match first
             const codeMatch = await db.book.findFirst({
                 where: {
                     AND: [visibilityFilter, { bookCode: { equals: q } }],
@@ -215,11 +218,20 @@ export async function GET(req: Request){
 
             if (codeMatch) {
                 matchType = "code";
-
-                return NextResponse.json({ ok: true, data: { matchType, items: [codeMatch], pageInfo: { limit, hasNext: false, nextCursor: null }, summary: { count: 1, total: 1 } } }, { status: 200 });
+                return NextResponse.json(
+                    {
+                        ok: true,
+                        data: {
+                            matchType,
+                            items: [codeMatch],
+                            pageInfo: { limit, hasNext: false, nextCursor: null },
+                            summary: { count: 1, total: 1 },
+                        },
+                    },
+                    { status: 200 }
+                );
             }
 
-            // else text search
             matchType = "text";
             where = {
                 AND: [
@@ -232,28 +244,19 @@ export async function GET(req: Request){
                         ],
                     },
                 ],
-            };
+            } satisfies Prisma.BookWhereInput;
         }
 
-        // apply cursor if present (to the pagination query only)
         if (cursor) {
-            try {
-                const decoded = JSON.parse(Buffer.from(cursor, "base64").toString("utf8"));
-                const cursorWhere = buildCursorWhere(decoded, order);
-                if (cursorWhere) {
-                    where = { AND: [where, cursorWhere] };
-                }
-            } catch (e) {
-                return NextResponse.json({ ok: false, error: "INVALID_QUERY" }, { status: 400 });
-            }
+            const decoded = parseCursor(cursor);
+            if (!decoded) return NextResponse.json({ ok: false, error: "INVALID_QUERY" }, { status: 400 });
+            const cursorWhere = buildCursorWhere(decoded);
+            if (cursorWhere) where = { AND: [where, cursorWhere] };
         }
 
-        // orderBy
-        const orderBy: any[] = [{ [sortField]: order }, { id: order }];
+        const orderBy = [{ [sortField]: orderDir }, { id: orderDir }] as Prisma.BookOrderByWithRelationInput[];
 
-        // fetch limit + 1
         const pageSize = limit;
-
         const rows = await db.book.findMany({
             where,
             orderBy,
@@ -277,33 +280,43 @@ export async function GET(req: Request){
         const items = hasNext ? rows.slice(0, pageSize) : rows;
 
         if (!items.length) {
-            return NextResponse.json({ ok: false, error: "BOOK_NOT_FOUND" }, { status: 404 });
+            return NextResponse.json(
+                {
+                    ok: true,
+                    data: {
+                        matchType,
+                        items: [],
+                        pageInfo: { limit: pageSize, hasNext: false, nextCursor: null },
+                        summary: { count: 0, total: 0 },
+                    },
+                },
+                { status: 200 }
+            );
         }
 
-        // build next cursor
         let nextCursor: string | null = null;
         if (hasNext) {
             const last = items[items.length - 1];
-            const cursorVal: any = last[sortField as keyof typeof last];
+            const cursorVal = (last as unknown as Record<string, unknown>)[sortField];
             const cursorObj = { value: cursorVal instanceof Date ? cursorVal.toISOString() : cursorVal, id: last.id };
             nextCursor = Buffer.from(JSON.stringify(cursorObj)).toString("base64");
         }
 
         const total = await db.book.count({ where: baseWhere });
 
-        const result = {
-            ok: true,
-            data: {
-                matchType,
-                items,
-                pageInfo: { limit: pageSize, hasNext, nextCursor },
-                summary: { count: items.length, total },
+        return NextResponse.json(
+            {
+                ok: true,
+                data: {
+                    matchType,
+                    items,
+                    pageInfo: { limit: pageSize, hasNext, nextCursor },
+                    summary: { count: items.length, total },
+                },
             },
-        };
-
-        return NextResponse.json(result, { status: 200 });
-
-    } catch (err: any) {
+            { status: 200 }
+        );
+    } catch (err) {
         console.error(err);
         return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
     }

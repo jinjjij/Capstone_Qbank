@@ -17,6 +17,7 @@ model User {
   id           Int      @id @default(autoincrement())
   email        String   @unique @db.VarChar(255)
   passwordHash String   @db.VarChar(255)
+  isAdmin      Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   // 세션
@@ -25,6 +26,9 @@ model User {
   // 라이브러리 (유저가 저장한 책들)
   libraryLinks UserLibrary[]
   libraryCount Int           @default(0)
+
+  // 최근 접근한 문제집 기록
+  activities UserBookActivity[]
 
   // 저자로서의 관계
   authoredBooks     Book[]
@@ -52,6 +56,25 @@ model UserLibrary {
 
   @@id([userId, bookId])
   @@index([userId])
+  @@index([bookId])
+}
+
+/**
+ * =======================
+ * UserBookActivity (최근 접근한 문제집 기록)
+ * =======================
+ */
+
+model UserBookActivity {
+  userId         Int
+  bookId         Int
+  lastAccessedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@id([userId, bookId])
+  @@index([userId, lastAccessedAt(sort: Desc)])
   @@index([bookId])
 }
 
@@ -103,6 +126,9 @@ model Book {
 
   // 라이브러리에 저장한 유저들과의 링크
   savedByLinks UserLibrary[]
+
+  // 접근 기록
+  accessedBy UserBookActivity[]
 
   @@index([authorId, visibility])
   @@index([title])

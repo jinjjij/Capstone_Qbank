@@ -145,7 +145,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ bookId: 
     if (!book) return NextResponse.json({ ok: false, error: "BOOK_NOT_FOUND" }, { status: 404 });
 
     // if book private, only author or admin can list
-    if (book.visibility === "PRIVATE") {
+    const skipAuth = process.env.SKIP_AUTH_IN_DEV === "true" && process.env.NODE_ENV === "development";
+    if (book.visibility === "PRIVATE" && !skipAuth) {
       const adminIds = (process.env.ADMIN_IDS || "").split(",").map(s => Number(s.trim())).filter(Boolean);
       const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
       const isAdmin = user && (adminIds.includes(user.id) || adminEmails.includes((user.email || "").toLowerCase()));
