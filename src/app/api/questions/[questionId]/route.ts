@@ -32,9 +32,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ question
 
     if (!question) return NextResponse.json({ ok: false, error: "INVALID_ID" }, { status: 401 });
 
-    // if book is PRIVATE, only book author can see
+    // if book is PRIVATE, only book author or admin can see
     if (question.book.visibility === "PRIVATE") {
-      if (!user || user.id !== question.book.authorId) {
+      if (!user || (user.id !== question.book.authorId && !user.isAdmin)) {
         return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 402 });
       }
     }
@@ -76,8 +76,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ questi
     if (!found) return NextResponse.json({ ok: false, error: "INVALID_ID" }, { status: 401 });
 
     const ownerId = found.authorId ?? found.book.authorId;
-    if (user.id !== ownerId && user.id !== found.book.authorId) {
-      // only question author or book author can edit
+    if (user.id !== ownerId && user.id !== found.book.authorId && !user.isAdmin) {
+      // only question author, book author, or admin can edit
       return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 402 });
     }
 
@@ -154,8 +154,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ quest
     const found = await db.question.findUnique({ where: { id }, select: { id: true, authorId: true, book: { select: { id: true, authorId: true } } } });
     if (!found) return NextResponse.json({ ok: false, error: "INVALID_ID" }, { status: 401 });
 
-    // deletion allowed when user is question author or book author
-    const allowed = user.id === found.authorId || user.id === found.book.authorId;
+    // deletion allowed when user is question author, book author, or admin
+    const allowed = user.id === found.authorId || user.id === found.book.authorId || user.isAdmin;
     if (!allowed) return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 402 });
 
     // delete

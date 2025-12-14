@@ -57,10 +57,10 @@ export async function GET(
             );
         }
 
-        // 유저 접근권한 체크
+        // 유저 접근권한 체크 (admin은 모든 문제집 조회 가능)
         const skipAuth = process.env.SKIP_AUTH_IN_DEV === "true" && process.env.NODE_ENV === "development";
         if (book.visibility == "PRIVATE" && !skipAuth) {
-            if (!user || user.id != book.authorId) {
+            if (!user || (user.id != book.authorId && !user.isAdmin)) {
                 return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 402 });
             }
         }
@@ -177,7 +177,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ bookId
             return NextResponse.json({ ok:false, error: "INVALID_ID" }, { status: 401 });
         }
 
-        if(existing.authorId !== user.id){
+        if(existing.authorId !== user.id && !user.isAdmin){
             return NextResponse.json({ ok:false, error: "FORBIDDEN" }, { status: 402 });
         }
 
@@ -280,12 +280,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ bookI
             return NextResponse.json({ ok:false, error: "INVALID_ID" }, { status: 401 });
         }
 
-        // admin support via env vars (comma-separated ids or emails). If not configured, only author may delete.
-        const adminIds = (process.env.ADMIN_IDS || "").split(",").map(s => Number(s.trim())).filter(Boolean);
-        const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
-        const isAdmin = adminIds.includes(user.id) || adminEmails.includes((user.email || "").toLowerCase());
-
-        if(user.id !== book.authorId && !isAdmin){
+        // admin can delete any book
+        if(user.id !== book.authorId && !user.isAdmin){
             return NextResponse.json({ ok:false, error: "FORBIDDEN" }, { status: 402 });
         }
 

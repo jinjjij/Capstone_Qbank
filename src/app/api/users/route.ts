@@ -8,12 +8,13 @@ import { SignUpSchema } from "@/lib/validation";
 
 // 회원가입
 export async function POST(req: Request) {
-  let email = "", password = "";
+  let email = "", password = "", isAdmin = false;
   try {
     const body = await req.json();
     const parsed = SignUpSchema.parse(body);
     email = parsed.email;
     password = parsed.password;
+    isAdmin = body.isAdmin === true; // 선택적 필드
   } catch {
     return NextResponse.json({ error: "잘못된 입력" }, { status: 400 });
   }
@@ -26,8 +27,8 @@ export async function POST(req: Request) {
 
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await db.user.create({
-    data: { email, passwordHash },
-    select: { id: true, email: true },
+    data: { email, passwordHash, isAdmin },
+    select: { id: true, email: true, isAdmin: true },
   });
 
   return NextResponse.json({ user }, { status: 201 });

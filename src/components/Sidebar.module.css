@@ -7,7 +7,7 @@
   position: fixed;
   top: 20px;
   left: 20px;
-  z-index: 999;
+  z-index: 1001;
 }
 
 .sidebar {
@@ -20,11 +20,13 @@
   border: 1px solid black;
   padding: 20px;
   transition: left 0.3s ease;
-  z-index: 1000;
+  z-index: 1002;
+  pointer-events: none;
 }
 
 .open {
   left: 0;
+  pointer-events: auto;
 }
 
 .sidebar h2 {

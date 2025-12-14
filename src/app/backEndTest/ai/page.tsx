@@ -1,15 +1,25 @@
 // app/backEndTest/ai/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function AITestPage() {
+  const [user, setUser] = useState<{id: number, email: string} | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [questionCount, setQuestionCount] = useState("");
   const [result, setResult] = useState<string>("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/users/me")
+      .then(res => res.json())
+      .then(data => {
+        if (data.id && data.email) setUser(data);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -40,15 +50,36 @@ export default function AITestPage() {
   };
 
   return (
-    <main style={{
-      padding: 24,
-      backgroundColor: "#f9f9f9",
-      border: "2px solid #007bff",
-      borderRadius: 8,
-      margin: 20,
-      fontFamily: "Arial, sans-serif"
-    }}>
-      <h1 style={{ color: "#007bff", textAlign: "center" }}>AI 문제집 생성 API 테스트</h1>
+    <>
+      <div style={{ 
+        position: "fixed", 
+        top: "10px", 
+        left: "10px", 
+        padding: "8px 12px", 
+        background: "var(--bg-secondary)", 
+        borderRadius: "var(--radius-md)",
+        fontSize: "0.85rem",
+        color: "var(--text-secondary)",
+        zIndex: 100
+      }}>
+        {user ? (
+          <>
+            <div><strong>ID:</strong> {user.id}</div>
+            <div><strong>Email:</strong> {user.email}</div>
+          </>
+        ) : (
+          <div style={{ color: "var(--error)" }}>로그인 필요</div>
+        )}
+      </div>
+      <main style={{
+        padding: 24,
+        backgroundColor: "#f9f9f9",
+        border: "2px solid #007bff",
+        borderRadius: 8,
+        margin: 20,
+        fontFamily: "Arial, sans-serif"
+      }}>
+        <h1 style={{ color: "#007bff", textAlign: "center" }}>AI 문제집 생성 API 테스트</h1>
       <p style={{ textAlign: "center", color: "#555" }}>PDF를 업로드하여 문제집을 생성하는 API를 테스트합니다.</p>
 
       <form onSubmit={handleSubmit} style={{
@@ -150,5 +181,6 @@ export default function AITestPage() {
         </pre>
       )}
     </main>
+    </>
   );
 }
