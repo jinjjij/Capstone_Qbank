@@ -58,7 +58,8 @@ export async function GET(
         }
 
         // 유저 접근권한 체크
-        if (book.visibility == "PRIVATE") {
+        const skipAuth = process.env.SKIP_AUTH_IN_DEV === "true" && process.env.NODE_ENV === "development";
+        if (book.visibility == "PRIVATE" && !skipAuth) {
             if (!user || user.id != book.authorId) {
                 return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 402 });
             }
