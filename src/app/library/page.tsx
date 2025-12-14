@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
-import styles from "./main.module.css";
+import styles from "../main/main.module.css";
 
 interface Book {
   id: number;
@@ -19,23 +19,23 @@ interface Book {
   updatedAt: string;
 }
 
-export default function Main() {
+export default function LibraryPage() {
   const router = useRouter();
-  const [myBooks, setMyBooks] = useState<Book[]>([]);
+  const [libraryBooks, setLibraryBooks] = useState<Book[]>([]);
   const [searchResults, setSearchResults] = useState<Book[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // 내 문제집 불러오기
+  // 라이브러리 문제집 불러오기
   useEffect(() => {
-    const fetchMyLibrary = async () => {
+    const fetchLibrary = async () => {
       try {
-        const res = await fetch("/api/user/me/library?limit=20");
+        const res = await fetch("/api/user/me/library?limit=100");
         const data = await res.json();
         
         if (data.ok && data.data.items) {
-          setMyBooks(data.data.items);
+          setLibraryBooks(data.data.items);
         }
       } catch (error) {
         console.error("Failed to fetch library:", error);
@@ -44,11 +44,11 @@ export default function Main() {
       }
     };
 
-    fetchMyLibrary();
+    fetchLibrary();
   }, []);
 
-  // 검색 처리
-  const handleSearch = async (e: React.FormEvent) => {
+  // 검색 처리 (라이브러리 내에서만 검색)
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -57,26 +57,13 @@ export default function Main() {
     }
 
     setIsSearching(true);
-    try {
-      const res = await fetch(`/api/books?q=${encodeURIComponent(searchQuery)}&limit=20`);
-      
-      if (!res.ok) {
-        console.error("Search failed with status:", res.status);
-        setSearchResults([]);
-        return;
-      }
-      
-      const data = await res.json();
-      
-      if (data.ok && data.data.items) {
-        setSearchResults(data.data.items);
-      } else {
-        setSearchResults([]);
-      }
-    } catch (error) {
-      console.error("Search failed:", error);
-      setSearchResults([]);
-    }
+    const query = searchQuery.toLowerCase();
+    const filtered = libraryBooks.filter(book => 
+      book.title.toLowerCase().includes(query) ||
+      book.description?.toLowerCase().includes(query) ||
+      book.bookCode.toLowerCase().includes(query)
+    );
+    setSearchResults(filtered);
   };
 
   const clearSearch = () => {
@@ -118,7 +105,7 @@ export default function Main() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="문제집 제목, 설명, 코드로 검색..."
+              placeholder="내 라이브러리에서 검색..."
               className={styles.searchInput}
             />
             <button type="submit" className={styles.searchButton}>
@@ -152,29 +139,29 @@ export default function Main() {
           </div>
         )}
 
-        {/* 내 문제집 */}
+        {/* 내 라이브러리 */}
         {!isSearching && (
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>
-              내 문제집 ({myBooks.length})
+              내 라이브러리 ({libraryBooks.length})
             </h2>
             {loading ? (
               <div className={styles.emptyState}>
                 <p className={styles.emptyStateText}>로딩 중...</p>
               </div>
-            ) : myBooks.length > 0 ? (
+            ) : libraryBooks.length > 0 ? (
               <div className={styles.bookGrid}>
-                {myBooks.map((book) => (
+                {libraryBooks.map((book) => (
                   <BookCard key={book.id} book={book} />
                 ))}
               </div>
             ) : (
               <div className={styles.emptyState}>
                 <p className={styles.emptyStateText}>
-                  아직 문제집이 없습니다
+                  라이브러리가 비어있습니다
                 </p>
                 <p className={styles.emptyStateSubtext}>
-                  문제집을 생성하거나 다른 사람의 문제집을 라이브러리에 추가해보세요
+                  다른 사람의 문제집을 라이브러리에 추가해보세요
                 </p>
               </div>
             )}

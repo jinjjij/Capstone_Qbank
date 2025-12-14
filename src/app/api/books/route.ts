@@ -158,6 +158,10 @@ export async function GET(req: Request){
             ? { OR: [{ visibility: "PUBLIC" }, { authorId: user.id }] }
             : { visibility: "PUBLIC" };
 
+        console.log("[Books API] Search query:", q);
+        console.log("[Books API] Current user:", user?.id);
+        console.log("[Books API] Visibility filter:", JSON.stringify(visibilityFilter));
+
         // function to build cursor where clause
         function buildCursorWhere(parsedCursor: any, orderDir: string) {
             if (!parsedCursor || parsedCursor.id === undefined) return undefined;
@@ -233,6 +237,7 @@ export async function GET(req: Request){
                     },
                 ],
             };
+            console.log("[Books API] Text search where clause:", JSON.stringify(where, null, 2));
         }
 
         // apply cursor if present (to the pagination query only)
@@ -273,11 +278,25 @@ export async function GET(req: Request){
             },
         });
 
+        console.log("[Books API] Found", rows.length, "books");
+        if (rows.length > 0) {
+            console.log("[Books API] First result:", { id: rows[0].id, title: rows[0].title, visibility: rows[0].visibility, authorId: rows[0].authorId });
+        }
+
         const hasNext = rows.length > pageSize;
         const items = hasNext ? rows.slice(0, pageSize) : rows;
 
+        // If no results, return empty array instead of 404
         if (!items.length) {
-            return NextResponse.json({ ok: false, error: "BOOK_NOT_FOUND" }, { status: 404 });
+            return NextResponse.json({ 
+                ok: true, 
+                data: { 
+                    matchType, 
+                    items: [], 
+                    pageInfo: { limit: pageSize, hasNext: false, nextCursor: null }, 
+                    summary: { count: 0, total: 0 } 
+                } 
+            }, { status: 200 });
         }
 
         // build next cursor

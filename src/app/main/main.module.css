@@ -1,0 +1,167 @@
+.container {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-page);
+}
+
+.content {
+  flex: 1;
+  padding: var(--space-4xl);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.searchSection {
+  margin-bottom: var(--space-4xl);
+}
+
+.searchForm {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.searchInput {
+  flex: 1;
+  padding: 14px 20px;
+  font-size: 16px;
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.searchInput:focus {
+  border-color: var(--primary-gradient-start);
+}
+
+.searchButton {
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  background-color: var(--primary-gradient-start);
+  color: var(--text-white);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.searchButton:hover {
+  background-color: #5568d3;
+}
+
+.clearButton {
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.section {
+  margin-bottom: var(--space-4xl);
+}
+
+.sectionTitle {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: var(--space-xl);
+  color: var(--text-primary);
+}
+
+.bookGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-xl);
+}
+
+.bookCard {
+  padding: var(--space-xl);
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.bookCard:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.bookCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-md);
+}
+
+.bookTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.visibilityBadge {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.visibilityPublic {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.visibilityPrivate {
+  background-color: #fce4ec;
+  color: #c2185b;
+}
+
+.bookDescription {
+  margin: 0 0 var(--space-md) 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.bookMeta {
+  display: flex;
+  gap: var(--space-lg);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.bookCode {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.emptyState {
+  padding: 60px 20px;
+  text-align: center;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+}
+
+.emptyStateText {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.emptyStateSubtext {
+  font-size: 14px;
+  color: var(--text-muted);
+}

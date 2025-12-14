@@ -1,0 +1,235 @@
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-hover);
+  overflow: hidden;
+}
+
+.header {
+  padding: var(--space-lg);
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-medium);
+}
+
+.bookTitle {
+  margin: 0;
+  font-size: 18px;
+  text-align: center;
+}
+
+.progressText {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2xl);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-light);
+}
+
+.statItem {
+  text-align: center;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.statCorrect {
+  color: var(--success-text);
+}
+
+.statWrong {
+  color: var(--error-text);
+}
+
+.statAccuracy {
+  color: #1976d2;
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-2xl);
+  transition: background-color 0.3s;
+}
+
+.mainContentQuestion {
+  background-color: #fff3e0;
+}
+
+.mainContentAnswer {
+  background-color: #e8f5e9;
+}
+
+.contentWrapper {
+  max-width: 600px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.contentInner {
+  width: 100%;
+}
+
+.questionTitle {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: var(--space-lg);
+  color: var(--text-primary);
+}
+
+.questionText {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: var(--space-2xl);
+}
+
+.choiceList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.choice {
+  padding: var(--space-md);
+  border: 2px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-card);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.choiceSelected {
+  border-color: #007bff;
+  background-color: #e3f2fd;
+}
+
+.choice:hover {
+  background-color: var(--bg-hover);
+}
+
+.btnCheckAnswer {
+  margin-top: var(--space-4xl);
+  padding: 15px 40px;
+  font-size: 18px;
+  font-weight: bold;
+  background-color: #4CAF50;
+  color: var(--text-white);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnCheckAnswer:hover {
+  background-color: #45a049;
+}
+
+.resultBox {
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2xl);
+  text-align: center;
+}
+
+.resultBoxCorrect {
+  background-color: var(--success-bg);
+}
+
+.resultBoxWrong {
+  background-color: #ffcdd2;
+}
+
+.resultText {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.resultTextCorrect {
+  color: var(--success-text);
+}
+
+.resultTextWrong {
+  color: #c62828;
+}
+
+.answerChoice {
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  font-weight: normal;
+}
+
+.answerChoiceCorrect {
+  background-color: var(--success-bg);
+  border: 2px solid var(--success-text);
+  color: var(--success-text);
+  font-weight: bold;
+}
+
+.answerChoiceWrong {
+  background-color: #ffcdd2;
+  border: 2px solid #c62828;
+  color: #c62828;
+  font-weight: bold;
+}
+
+.answerChoiceNeutral {
+  background-color: var(--bg-card);
+  border: 2px solid var(--border-medium);
+  color: var(--text-primary);
+}
+
+.answerTitle {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: var(--space-lg);
+  color: var(--success-text);
+}
+
+.answerText {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.btnNext {
+  margin-top: var(--space-4xl);
+  padding: 15px 40px;
+  font-size: 18px;
+  font-weight: bold;
+  background-color: #2196F3;
+  color: var(--text-white);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnNext:hover:not(:disabled) {
+  background-color: #1976D2;
+}
+
+.btnNext:disabled {
+  background-color: var(--border-medium);
+  cursor: not-allowed;
+}

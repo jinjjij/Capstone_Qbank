@@ -33,7 +33,7 @@ export default function Sidebar() {
         <ul>
           <li><Link href="/profile">내 프로필</Link></li>
           <li><Link href="/main">검색</Link></li>
-          <li><Link href="/bank">내 문제집</Link></li>
+          <li><Link href="/library">내 라이브러리</Link></li>
           <li><Link href="/setting">설정</Link></li>
         </ul>
       </div>
