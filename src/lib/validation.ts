@@ -19,11 +19,11 @@ export const ChangePasswordSchema = z.object({
 })
 
 
-export function isString(value: any): value is string {
+export function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
-export function isOptionalString(value: any): value is string | undefined | null {
+export function isOptionalString(value: unknown): value is string | undefined | null {
   return (
     value === undefined ||
     value === null ||
@@ -33,6 +33,6 @@ export function isOptionalString(value: any): value is string | undefined | null
 
 export type Visibility = "PUBLIC" | "PRIVATE";
 
-export function isVisibility(value: any): value is Visibility {
+export function isVisibility(value: unknown): value is Visibility {
   return value === "PUBLIC" || value === "PRIVATE";
 }

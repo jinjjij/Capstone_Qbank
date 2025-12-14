@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { isVisibility } from "@/lib/validation";
+import { Prisma } from "@prisma/client";
 
 
 function parseBookId(raw: string): number | null {
@@ -88,6 +89,7 @@ export async function GET(
                 description: true,
                 visibility: true,
                 authorId: true,
+                author: { select: { email: true } },
                 questionCount: true,
                 ratingAvg: true,
                 ratingCount: true,
@@ -131,22 +133,23 @@ export async function GET(
         // isActive: helper derived flag (true if visible to public)
         const isActive = bookQuery.visibility === "PUBLIC";
 
-        const responseBook: any = {
+        const responseBook = {
             id: bookQuery.id,
             bookCode: bookQuery.bookCode,
             title: bookQuery.title,
             description: bookQuery.description,
             visibility: bookQuery.visibility,
+            authorId: bookQuery.authorId,
+            authorEmail: bookQuery.author?.email ?? null,
             questionCount: bookQuery.questionCount,
             ratingAvg: bookQuery.ratingAvg,
             ratingCount: bookQuery.ratingCount,
             isActive,
             createdAt: bookQuery.createdAt,
             updatedAt: bookQuery.updatedAt,
+            ...(includeQuestions ? { questions: bookQuery.questions ?? [] } : {}),
+            ...(includeReviews ? { reviews: bookQuery.reviews ?? [] } : {}),
         };
-
-        if (includeQuestions) responseBook.questions = bookQuery.questions ?? [];
-        if (includeReviews) responseBook.reviews = bookQuery.reviews ?? [];
 
         return NextResponse.json({ ok: true, data: responseBook }, { status: 200 });
     }
@@ -182,7 +185,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ bookId
         }
 
         // parse body
-        let payload: any;
+        let payload: unknown;
         try{
             payload = await req.json();
         } catch(_){
@@ -193,53 +196,55 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ bookId
             return NextResponse.json({ ok:false, error: "INVALID_FIELD" }, { status: 400 });
         }
 
+        const record = payload as Record<string, unknown>;
+
         // Allowed fields
         const ALLOWED = new Set(["title","description","visibility","isActive"]);
 
-        for(const k of Object.keys(payload)){
+        for(const k of Object.keys(record)){
             if(!ALLOWED.has(k)){
                 return NextResponse.json({ ok:false, error: "INVALID_FIELD" }, { status: 400 });
             }
         }
 
-        const data: any = {};
+        const data: Prisma.BookUpdateInput = {};
 
         // validate fields
-        if(payload.title !== undefined){
-            if(typeof payload.title !== "string" || payload.title.trim().length === 0){
+        if(record.title !== undefined){
+            if(typeof record.title !== "string" || record.title.trim().length === 0){
                 return NextResponse.json({ ok:false, error: "INVALID_FIELD" }, { status: 400 });
             }
-            data.title = payload.title.trim();
+            data.title = record.title.trim();
         }
 
-        if(payload.description !== undefined){
-            if(payload.description !== null && typeof payload.description !== "string"){
+        if(record.description !== undefined){
+            if(record.description !== null && typeof record.description !== "string"){
                 return NextResponse.json({ ok:false, error: "INVALID_FIELD" }, { status: 400 });
             }
-            data.description = payload.description;
+            data.description = record.description as string | null;
         }
 
         // visibility / isActive
-        if(payload.visibility !== undefined && payload.isActive !== undefined){
+        if(record.visibility !== undefined && record.isActive !== undefined){
             // both provided — ensure consistency
-            if(!isVisibility(payload.visibility) || typeof payload.isActive !== "boolean"){
+            if(!isVisibility(record.visibility) || typeof record.isActive !== "boolean"){
                 return NextResponse.json({ ok:false, error: "INVALID_FIELD" }, { status: 400 });
             }
-            const visFromActive = payload.isActive ? "PUBLIC" : "PRIVATE";
-            if(visFromActive !== payload.visibility){
+            const visFromActive = record.isActive ? "PUBLIC" : "PRIVATE";
+            if(visFromActive !== record.visibility){
                 return NextResponse.json({ ok:false, error: "INVALID_FIELD" }, { status: 400 });
             }
-            data.visibility = payload.visibility;
-        } else if(payload.visibility !== undefined){
-            if(!isVisibility(payload.visibility)){
+            data.visibility = record.visibility;
+        } else if(record.visibility !== undefined){
+            if(!isVisibility(record.visibility)){
                 return NextResponse.json({ ok:false, error: "INVALID_FIELD" }, { status: 400 });
             }
-            data.visibility = payload.visibility;
-        } else if(payload.isActive !== undefined){
-            if(typeof payload.isActive !== "boolean"){
+            data.visibility = record.visibility;
+        } else if(record.isActive !== undefined){
+            if(typeof record.isActive !== "boolean"){
                 return NextResponse.json({ ok:false, error: "INVALID_FIELD" }, { status: 400 });
             }
-            data.visibility = payload.isActive ? "PUBLIC" : "PRIVATE";
+            data.visibility = record.isActive ? "PUBLIC" : "PRIVATE";
         }
 
         if(Object.keys(data).length === 0){
@@ -254,7 +259,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ bookId
 
         return NextResponse.json({ ok: true, data: result }, { status: 200 });
 
-    } catch(err: any){
+    } catch(err){
         console.error(err);
         return NextResponse.json({ ok:false, error: "INTERNAL_ERROR" }, { status: 500 });
     }
@@ -302,7 +307,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ bookI
 
         return NextResponse.json({ ok: true, data: { deletedId: id, cascade: { questions: questionsCount, reviews: reviewsCount, libraryLinks: libraryLinksCount } } }, { status: 200 });
 
-    } catch(err: any){
+    } catch(err){
         console.error(err);
         return NextResponse.json({ ok:false, error: "INTERNAL_ERROR" }, { status: 500 });
     }

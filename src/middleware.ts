@@ -8,7 +8,7 @@ import { COOKIE_NAME } from "@/lib/auth";
 const publicPaths = ["/login", "/signup"];
 
 // 보호된 경로 (인증 필요)
-const protectedPaths = ["/main", "/solve", "/profile", "/setting", "/library"];
+const protectedPaths = ["/main", "/solve", "/profile", "/setting", "/library", "/book"];
 
 // 개발 전용 경로
 const devOnlyPaths = ["/backEndTest"];

@@ -6,8 +6,8 @@ export default function CreateAccountTestPage() {
   const [user, setUser] = useState<{id: number, email: string} | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [response, setResponse] = useState<any>(null);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [response, setResponse] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function CreateAccountTestPage() {
         body: JSON.stringify({
           email,
           password,
-          isAdmin,
+              ...(adminPassword.trim() ? { adminPassword } : {}),
         }),
       });
 
@@ -48,7 +48,7 @@ export default function CreateAccountTestPage() {
       if (res.ok) {
         setEmail("");
         setPassword("");
-        setIsAdmin(false);
+            setAdminPassword("");
       }
     } catch (error) {
       setResponse({
@@ -167,20 +167,30 @@ export default function CreateAccountTestPage() {
               />
               <span style={{ fontWeight: "500", color: "#333" }}>
                 관리자 권한 부여
-              </span>
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "14px",
-              fontSize: "16px",
-              fontWeight: "bold",
-              backgroundColor: loading ? "#ccc" : "#1a73e8",
-              color: "white",
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ 
+                  display: "block", 
+                  marginBottom: "8px", 
+                  fontWeight: "500", 
+                  color: "#333" 
+                }}>
+                  관리자 비밀번호 (선택)
+                </label>
+                <input
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAdminPassword(e.target.value)}
+                  placeholder="관리자 이메일인 경우 입력"
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    fontSize: "16px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
               border: "none",
               borderRadius: "6px",
               cursor: loading ? "not-allowed" : "pointer",
@@ -298,6 +308,5 @@ export default function CreateAccountTestPage() {
         </div>
       </div>
     </div>
-    </>
   );
 }

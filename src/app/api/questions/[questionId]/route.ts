@@ -151,17 +151,22 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ quest
     if (!user) return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
 
     // fetch question + book
-    const found = await db.question.findUnique({ where: { id }, select: { id: true, authorId: true, book: { select: { id: true, authorId: true } } } });
+    const found = await db.question.findUnique({ where: { id }, select: { id: true, bookId: true, authorId: true, book: { select: { id: true, authorId: true } } } });
     if (!found) return NextResponse.json({ ok: false, error: "INVALID_ID" }, { status: 401 });
 
     // deletion allowed when user is question author, book author, or admin
     const allowed = user.id === found.authorId || user.id === found.book.authorId || user.isAdmin;
     if (!allowed) return NextResponse.json({ ok: false, error: "FORBIDDEN" }, { status: 402 });
 
-    // delete
-    await db.question.delete({ where: { id } });
+    // delete + recompute book.questionCount to keep it consistent
+    const result = await db.$transaction(async (tx) => {
+      const deleted = await tx.question.delete({ where: { id }, select: { id: true, bookId: true } });
+      const questionCount = await tx.question.count({ where: { bookId: deleted.bookId } });
+      await tx.book.update({ where: { id: deleted.bookId }, data: { questionCount } });
+      return { deletedId: deleted.id, bookId: deleted.bookId, questionCount };
+    });
 
-    return NextResponse.json({ ok: true, data: { deletedId: id } }, { status: 200 });
+    return NextResponse.json({ ok: true, data: result }, { status: 200 });
   } catch (err: any) {
     console.error(err);
     return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });

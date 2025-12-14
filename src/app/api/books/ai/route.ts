@@ -1,95 +1,92 @@
-"use server";
-
-import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { writeFile, unlink, mkdir } from "fs/promises";
-import path from "path";
-import { nanoid } from "nanoid";
+
+function parsePositiveInt(raw: unknown): number | null {
+  const n = typeof raw === "string" ? Number(raw) : NaN;
+  if (!Number.isInteger(n) || n <= 0) return null;
+  return n;
+}
+
+function stripCodeFences(text: string): string {
+  return text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+}
+
+function extractJsonArray(text: string): unknown {
+  const cleaned = stripCodeFences(text);
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const start = cleaned.indexOf("[");
+    const end = cleaned.lastIndexOf("]");
+    if (start >= 0 && end > start) {
+      const sub = cleaned.slice(start, end + 1);
+      return JSON.parse(sub);
+    }
+    throw new Error("INVALID_JSON");
+  }
+}
+
+async function readTextFromUploadedFile(file: File): Promise<string> {
+  const name = (file.name || "").toLowerCase();
+  const type = (file.type || "").toLowerCase();
+
+  const isPdf = type.includes("pdf") || name.endsWith(".pdf");
+  if (isPdf) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const pdfParse = (await import("pdf-parse")).default;
+    const data = await pdfParse(buffer);
+    return data.text || "";
+  }
+
+  const ab = await file.arrayBuffer();
+  return new TextDecoder("utf-8").decode(ab);
+}
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-    const file = formData.get("pdf") as File;
-    const title = formData.get("title") as string;
-    const description = formData.get("description") as string;
-    const questionCount = parseInt(formData.get("questionCount") as string);
-    const questionType = (formData.get("questionType") as string) || "MCQ";
+    const file = (formData.get("file") ?? formData.get("pdf")) as File | null;
+    const questionCount = parsePositiveInt(formData.get("questionCount"));
+    const message = (formData.get("message") as string | null) ?? "";
+    const questionType = "MCQ";
 
-    if (!file || !title || !description || !questionCount || !["MCQ", "SHORT"].includes(questionType)) {
-      return NextResponse.json({ error: "필수 필드가 누락되었거나 잘못되었습니다." }, { status: 400 });
+    if (!file || !questionCount || questionType !== "MCQ") {
+      return NextResponse.json({ ok: false, error: "INVALID_FIELD" }, { status: 400 });
     }
 
-    // PDF를 임시 파일로 저장
-    const tempDir = path.join(process.cwd(), "temp");
-    await mkdir(tempDir, { recursive: true });
-    const tempPath = path.join(tempDir, `${Date.now()}.pdf`);
-    await writeFile(tempPath, Buffer.from(await file.arrayBuffer()));
+    const fullText = await readTextFromUploadedFile(file);
+    const textContent = fullText.slice(0, 20000);
 
-    // PDF를 TXT로 변환
-    const buffer = await import("fs").then(fs => fs.readFileSync(tempPath));
-    const pdfParse = (await import("pdf-parse")).default;
-    const data = await pdfParse(buffer);
-    const textContent = data.text;
-
-    // 임시 파일 삭제
-    await unlink(tempPath);
-
-    // bookCode 생성 (nanoid 10자리, 중복 확인)
-    let bookCode;
-    while (true) {
-      bookCode = nanoid(10);
-      const exists = await db.book.findUnique({
-        where: { bookCode },
-      });
-      if (!exists) break;
-    }
-
-    // OpenAI API 호출 부분
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    let prompt = "";
-    if (questionType === "MCQ") {
-      prompt = `다음 텍스트에서 ${questionCount}개의 객관식 문제를 생성하세요. 각 문제는 JSON 형식으로 {question: string, choices: [{id: string, text: string}], answer: {id: string}}이어야 합니다. 응답은 JSON 배열로만 하세요.\n\n텍스트: ${textContent}`;
-    } else {
-      prompt = `다음 텍스트에서 ${questionCount}개의 주관식 문제를 생성하세요. 각 문제는 JSON 형식으로 {question: string, answer: string}이어야 합니다. 응답은 JSON 배열로만 하세요.\n\n텍스트: ${textContent}`;
-    }
+    const model = process.env.OPENAI_MODEL || "gpt-4";
+
+    const instruction = message.trim() ? `추가 지시사항: ${message.trim()}\n\n` : "";
+
+    const prompt = `${instruction}다음 텍스트에서 ${questionCount}개의 객관식 문제를 생성하세요. 각 문제는 JSON 형식으로 {question: string, choices: [{id: string, text: string}], answer: {id: string}}이어야 합니다. 응답은 JSON 배열로만 하세요.\n\n텍스트: ${textContent}`;
+
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model,
       messages: [{ role: "user", content: prompt }],
       max_tokens: 2000,
     });
-    const questionsData = JSON.parse(response.choices[0].message.content || "[]");
 
-    // DB에 저장
-    const book = await db.book.create({
-      data: {
-        bookCode,
-        title,
-        description,
-        questionCount,
-        // authorId는 세션에서 가져와야 함, 일단 null로 가정
-      },
-    });
-
-    // Question들 생성
-    for (let i = 0; i < questionsData.length; i++) {
-      const q = questionsData[i];
-      await db.question.create({
-        data: {
-          bookId: book.id,
-          orderIndex: i + 1,
-          type: questionType as "MCQ" | "SHORT",
-          question: q.question,
-          choices: questionType === "MCQ" ? q.choices : null,
-          answer: q.answer,
-          // authorId: book.authorId,
-        },
-      });
+    const content = response.choices[0]?.message?.content || "[]";
+    const parsed = extractJsonArray(content);
+    if (!Array.isArray(parsed)) {
+      return NextResponse.json({ ok: false, error: "INVALID_AI_RESPONSE" }, { status: 502 });
     }
 
-    return NextResponse.json({ message: "문제집 생성 완료", book }, { status: 201 });
+    const items = parsed.map((q: any) => ({ type: "MCQ", question: q?.question, choices: q?.choices, answer: q?.answer }));
+
+    return NextResponse.json(
+      { ok: true, data: { items }, deprecated: "Use POST /api/ai/query instead." },
+      { status: 200 },
+    );
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "서버 오류" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
   }
 }

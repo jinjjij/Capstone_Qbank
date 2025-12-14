@@ -6,9 +6,8 @@ import { useState, useEffect } from "react";
 export default function AITestPage() {
   const [user, setUser] = useState<{id: number, email: string} | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [questionCount, setQuestionCount] = useState("");
+  const [message, setMessage] = useState("");
   const [result, setResult] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
@@ -23,20 +22,19 @@ export default function AITestPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!file || !title || !description || !questionCount) {
+    if (!file || !questionCount) {
       setResult("모든 필드를 입력하세요.");
       return;
     }
 
     setLoading(true);
     const formData = new FormData();
-    formData.append("pdf", file);
-    formData.append("title", title);
-    formData.append("description", description);
+    formData.append("file", file);
     formData.append("questionCount", questionCount);
+    formData.append("message", message);
 
     try {
-      const response = await fetch("/api/books/ai", {
+      const response = await fetch("/api/ai/query", {
         method: "POST",
         body: formData,
       });
@@ -79,8 +77,8 @@ export default function AITestPage() {
         margin: 20,
         fontFamily: "Arial, sans-serif"
       }}>
-        <h1 style={{ color: "#007bff", textAlign: "center" }}>AI 문제집 생성 API 테스트</h1>
-      <p style={{ textAlign: "center", color: "#555" }}>PDF를 업로드하여 문제집을 생성하는 API를 테스트합니다.</p>
+        <h1 style={{ color: "#007bff", textAlign: "center" }}>AI 문제 생성 API 테스트</h1>
+      <p style={{ textAlign: "center", color: "#555" }}>파일을 업로드하여 문제 리스트를 생성하는 API를 테스트합니다.</p>
 
       <form onSubmit={handleSubmit} style={{
         marginTop: 20,
@@ -94,7 +92,7 @@ export default function AITestPage() {
           <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>PDF 파일: </label>
           <input
             type="file"
-            accept=".pdf"
+            accept=".pdf,.txt"
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] || null)}
             required
             style={{
@@ -102,36 +100,6 @@ export default function AITestPage() {
               border: "1px solid #ccc",
               borderRadius: 4,
               width: "100%"
-            }}
-          />
-        </div>
-        <div>
-          <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>제목: </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
-            required
-            style={{
-              padding: 8,
-              border: "1px solid #ccc",
-              borderRadius: 4,
-              width: "100%"
-            }}
-          />
-        </div>
-        <div>
-          <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>설명: </label>
-          <textarea
-            value={description}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
-            required
-            style={{
-              padding: 8,
-              border: "1px solid #ccc",
-              borderRadius: 4,
-              width: "100%",
-              minHeight: 80
             }}
           />
         </div>
@@ -150,6 +118,20 @@ export default function AITestPage() {
             }}
           />
         </div>
+        <div>
+          <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>짧은 메세지: </label>
+          <textarea
+            value={message}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value)}
+            style={{
+              padding: 8,
+              border: "1px solid #ccc",
+              borderRadius: 4,
+              width: "100%",
+              minHeight: 80
+            }}
+          />
+        </div>
         <button
           type="submit"
           disabled={loading}
@@ -163,7 +145,7 @@ export default function AITestPage() {
             fontSize: 16
           }}
         >
-          {loading ? "업로드 중..." : "문제집 생성"}
+          {loading ? "요청 중..." : "문제 생성"}
         </button>
       </form>
 

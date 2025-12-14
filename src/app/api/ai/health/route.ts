@@ -31,13 +31,14 @@ export async function GET() {
       },
       { status: 200 }
     );
-  } catch (err: any) {
-    console.error("OpenAI health check failed:", err?.message);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("OpenAI health check failed:", message);
     return NextResponse.json(
       {
         ok: false,
         status: "unavailable",
-        error: err?.message ?? "Unknown error",
+        error: message || "Unknown error",
         timestamp: new Date().toISOString(),
       },
       { status: 503 }

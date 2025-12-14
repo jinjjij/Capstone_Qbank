@@ -9,6 +9,7 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +35,11 @@ export default function Signup() {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+          ...(adminPassword.trim() ? { adminPassword } : {}),
+        }),
       });
 
       const data = await res.json();
@@ -102,6 +107,17 @@ export default function Signup() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               placeholder="비밀번호를 다시 입력하세요"
+              className="form-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">관리자 비밀번호 (선택)</label>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              placeholder="관리자 이메일인 경우 입력"
               className="form-input"
             />
           </div>

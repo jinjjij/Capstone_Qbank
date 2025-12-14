@@ -25,7 +25,11 @@ export default function LibraryPage() {
   const [searchResults, setSearchResults] = useState<Book[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [searchNextCursor, setSearchNextCursor] = useState<string | null>(null);
+  const [searchHasNext, setSearchHasNext] = useState(false);
+  const [loadingMoreSearch, setLoadingMoreSearch] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
 
   // 라이브러리 문제집 불러오기
   useEffect(() => {
@@ -47,33 +51,113 @@ export default function LibraryPage() {
     fetchLibrary();
   }, []);
 
+  // 새 문제집 만들기
+  const createNewBook = async () => {
+    if (creating) return;
+    
+    setCreating(true);
+    try {
+      const res = await fetch("/api/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "새 문제집",
+          description: "",
+          visibility: "PRIVATE"
+        })
+      });
+
+      const data = await res.json();
+      if (data.newBook && data.newBook.id) {
+        router.push(`/book/${data.newBook.id}`);
+      }
+    } catch (error) {
+      console.error("Failed to create book:", error);
+      alert("문제집 생성에 실패했습니다.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   // 검색 처리 (라이브러리 내에서만 검색)
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) {
       setSearchResults([]);
       setIsSearching(false);
+      setSearchNextCursor(null);
+      setSearchHasNext(false);
       return;
     }
 
     setIsSearching(true);
-    const query = searchQuery.toLowerCase();
-    const filtered = libraryBooks.filter(book => 
-      book.title.toLowerCase().includes(query) ||
-      book.description?.toLowerCase().includes(query) ||
-      book.bookCode.toLowerCase().includes(query)
-    );
-    setSearchResults(filtered);
+    try {
+      const res = await fetch(`/api/user/me/library?q=${encodeURIComponent(searchQuery)}&limit=20`);
+      if (!res.ok) {
+        setSearchResults([]);
+        setSearchNextCursor(null);
+        setSearchHasNext(false);
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      if (data?.ok && Array.isArray(data.data?.items)) {
+        setSearchResults(data.data.items);
+        setSearchNextCursor(data.data.pageInfo?.nextCursor ?? null);
+        setSearchHasNext(Boolean(data.data.pageInfo?.hasNext));
+      } else {
+        setSearchResults([]);
+        setSearchNextCursor(null);
+        setSearchHasNext(false);
+      }
+    } catch {
+      setSearchResults([]);
+      setSearchNextCursor(null);
+      setSearchHasNext(false);
+    }
+  };
+
+  const loadMoreSearch = async () => {
+    if (!isSearching) return;
+    if (!searchHasNext || !searchNextCursor) return;
+    if (!searchQuery.trim()) return;
+    if (loadingMoreSearch) return;
+
+    setLoadingMoreSearch(true);
+    try {
+      const res = await fetch(
+        `/api/user/me/library?q=${encodeURIComponent(searchQuery)}&limit=20&cursor=${encodeURIComponent(searchNextCursor)}`
+      );
+      if (!res.ok) return;
+      const data = await res.json().catch(() => null);
+      if (!data?.ok) return;
+
+      const nextItems: Book[] = Array.isArray(data.data?.items) ? data.data.items : [];
+      setSearchResults((prev) => {
+        const seen = new Set(prev.map((b) => b.id));
+        const merged = [...prev];
+        for (const b of nextItems) {
+          if (!seen.has(b.id)) merged.push(b);
+        }
+        return merged;
+      });
+
+      setSearchNextCursor(data.data?.pageInfo?.nextCursor ?? null);
+      setSearchHasNext(Boolean(data.data?.pageInfo?.hasNext));
+    } finally {
+      setLoadingMoreSearch(false);
+    }
   };
 
   const clearSearch = () => {
     setSearchQuery("");
     setSearchResults([]);
     setIsSearching(false);
+    setSearchNextCursor(null);
+    setSearchHasNext(false);
   };
 
   const BookCard = ({ book }: { book: Book }) => (
-    <div className={styles.bookCard} onClick={() => router.push(`/solve/${book.id}`)}>
+    <div className={styles.bookCard} onClick={() => router.push(`/book/${book.id}`)}>
       <div className={styles.bookCardHeader}>
         <h3 className={styles.bookTitle}>{book.title}</h3>
         <span className={`${styles.visibilityBadge} ${book.visibility === "PUBLIC" ? styles.visibilityPublic : styles.visibilityPrivate}`}>
@@ -117,6 +201,14 @@ export default function LibraryPage() {
               </button>
             )}
           </form>
+          <button 
+            onClick={createNewBook} 
+            disabled={creating}
+            className={styles.searchButton}
+            style={{ marginLeft: "auto" }}
+          >
+            {creating ? "생성 중..." : "+ 새 문제집"}
+          </button>
         </div>
 
         {/* 검색 결과 */}
@@ -126,11 +218,25 @@ export default function LibraryPage() {
               검색 결과 ({searchResults.length})
             </h2>
             {searchResults.length > 0 ? (
-              <div className={styles.bookGrid}>
-                {searchResults.map((book) => (
-                  <BookCard key={book.id} book={book} />
-                ))}
-              </div>
+              <>
+                <div className={styles.bookGrid}>
+                  {searchResults.map((book) => (
+                    <BookCard key={book.id} book={book} />
+                  ))}
+                </div>
+                {searchHasNext && (
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: "var(--space-lg)" }}>
+                    <button
+                      type="button"
+                      className={styles.searchButton}
+                      onClick={loadMoreSearch}
+                      disabled={loadingMoreSearch}
+                    >
+                      {loadingMoreSearch ? "불러오는 중..." : "더 보기"}
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className={styles.emptyState}>
                 <p className={styles.emptyStateText}>검색 결과가 없습니다</p>

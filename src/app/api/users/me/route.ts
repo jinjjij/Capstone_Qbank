@@ -11,7 +11,7 @@ export async function GET() {
 
     if (!user) return NextResponse.json({ user: null }, { status: 401 });
     
-    return NextResponse.json({ id: user.id, email: user.email }, { status: 200 });
+  return NextResponse.json({ id: user.id, email: user.email, isAdmin: user.isAdmin }, { status: 200 });
 }
 
 
