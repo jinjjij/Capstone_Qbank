@@ -220,7 +220,7 @@ export async function POST(request: Request) {
 					tools,
 					tool_choice: { type: "function", function: { name: "return_questions" } },
 					temperature: 0.2,
-					max_tokens: maxTokens,
+					max_completion_tokens: maxTokens,
 				},
 				{ timeoutMs, maxAttempts }
 			);
